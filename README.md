@@ -41,7 +41,9 @@ Follow the directions here: https://anvio.org/install/linux/stable/
 #### [hmmer](https://anvio.org/help/7/programs/anvi-run-hmms/) - a program to to identify homologous protein or nucleotide sequences and to perform sequence alignments
 #### annotate [COGs](https://anvio.org/help/7/programs/anvi-run-ncbi-cogs/) and [KEGGs](https://anvio.org/help/7/programs/anvi-run-kegg-kofams/)
 I have set up Anvi'o to run on the high-performance computing (HPC) cluster, since it runs a lot faster. I'll include two versions of the code - one for running on your local computer, and a second for running on an HPC. 
-### Local computer: create in nano or textedit save the file as Methanogen_comparison_pangenome.sh
+### Local computer
+create a shell script file in nano or textedit
+save the file as **Methanogen_comparison_pangenome.sh**
 ```
 #!/bin/bash
 
@@ -88,20 +90,22 @@ anvi-pan-genome -g METHANOGEN_GENOMES.db \
                 --num-threads 4 \
                 --minbit 0.5
 ```
-Make the script executable: `chmod +x Methanogen_comparison_pangenome.sh`
+Make the script executable: `chmod +x Methanogen_comparison_pangenome.sh`\
 Execute the script: `./Methanogen_comparison_pangenome.sh`
 
-### HPC: create in nano save the file as Methanogen_comparison_pangenome.sh
+### HPC: 
+create in nano
+save the file as **Methanogen_comparison_pangenome.sh**
 ```
 #!/bin/bash
-#SBATCH --partition=compute                          # Queue selection
-#SBATCH --job-name=generate_pangenome                # Job name
-#SBATCH --mail-type=ALL                              # Mail events (BEGIN, END, FAIL, ALL)
-#SBATCH --mail-user=selkassas@whoi.edu               # Where to send mail
-#SBATCH --ntasks=1                                   # Run a single task
-#SBATCH --cpus-per-task=4                            # Number of CPU cores per task
+#SBATCH --partition=compute                         # Queue selection
+#SBATCH --job-name=generate_pangenome               # Job name
+#SBATCH --mail-type=ALL                             # Mail events (BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=selkassas@whoi.edu              # Where to send mail
+#SBATCH --ntasks=1                                  # Run a single task
+#SBATCH --cpus-per-task=4                           # Number of CPU cores per task
 #SBATCH --mem=80gb                                  # Job memory request
-#SBATCH --time=24:00:00								               # Time limit hrs:min:sec
+#SBATCH --time=24:00:00								              # Time limit hrs:min:sec
 #SBATCH --output=generate_pangenome.log     		    # Job log name
 export OMP_NUM_THREADS=4
 
@@ -152,3 +156,29 @@ anvi-pan-genome -g METHANOGEN_GENOMES.db \
                 --minbit 0.5
 ```
 Submit the job to slurm `sbatch Methanogen_comparison_pangenome.sh`
+
+## Step 4: Display pangenome 
+### Local computer: Anvi'o interactive interface 
+This will launch Anvi'o's interactive interface on your default browser
+```
+anvi-display-pan -p /vortexfs1/omics/huber/selkassas/Methanogen_Comparison_Alta/genomes//METHANOGEN_PANGENOME/METHANOGEN_PANGENOME-PAN.db \
+-g METHANOGEN_GENOMES.db
+```
+### HPC: SSH tunneling
+#### Check out [this](https://github.com/emilieskoog/SSH-tunneling/blob/main/SSH%20tunneling%20(specific%20example%20for%20anvi%E2%80%99o).md) awesome guide from Dr. Emily Skoog
+```
+#Enter a Local SSH tunnel
+local ~ $ ssh -L 8090:localhost:8090 selkassas@poseidon-l2.whoi.edu
+#enter your password
+
+#activate your conda environment
+conda activate anvio-8
+
+anvi-display-pan -p /vortexfs1/omics/huber/selkassas/Methanogen_Comparison_Alta/genomes/METHANOGEN_PANGENOME/METHANOGEN_PANGENOME-PAN.db \
+-g METHANOGEN_GENOMES.db \
+--server-only -P 8090
+
+Go to a webbrowser and type http://localhost:8090 and an interactive window will pop up
+```
+
+
