@@ -41,7 +41,7 @@ Follow the directions here: https://anvio.org/install/linux/stable/
 #### [hmmer](https://anvio.org/help/7/programs/anvi-run-hmms/) - a program to to identify homologous protein or nucleotide sequences and to perform sequence alignments
 #### annotate [COGs](https://anvio.org/help/7/programs/anvi-run-ncbi-cogs/) and [KEGGs](https://anvio.org/help/7/programs/anvi-run-kegg-kofams/)
 I have set up Anvi'o to run on the high-performance computing (HPC) cluster, since it runs a lot faster. I'll include two versions of the code - one for running on your local computer, and a second for running on an HPC. 
-### Local computer: save the file as 
+### Local computer: create in nano or textedit save the file as Methanogen_comparison_pangenome.sh
 ```
 #!/bin/bash
 
@@ -88,4 +88,67 @@ anvi-pan-genome -g METHANOGEN_GENOMES.db \
                 --num-threads 4 \
                 --minbit 0.5
 ```
+Make the script executable: `chmod +x Methanogen_comparison_pangenome.sh`
+Execute the script: `./Methanogen_comparison_pangenome.sh`
 
+### HPC: create in nano save the file as Methanogen_comparison_pangenome.sh
+```
+#!/bin/bash
+#SBATCH --partition=compute                          # Queue selection
+#SBATCH --job-name=generate_pangenome                # Job name
+#SBATCH --mail-type=ALL                              # Mail events (BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=selkassas@whoi.edu               # Where to send mail
+#SBATCH --ntasks=1                                   # Run a single task
+#SBATCH --cpus-per-task=4                            # Number of CPU cores per task
+#SBATCH --mem=80gb                                  # Job memory request
+#SBATCH --time=24:00:00								               # Time limit hrs:min:sec
+#SBATCH --output=generate_pangenome.log     		    # Job log name
+export OMP_NUM_THREADS=4
+
+eval "$(/vortexfs1/home/selkassas/miniforge3/bin/conda shell.bash hook)" 
+conda activate /vortexfs1/home/selkassas/miniforge3/envs/anvio-8
+
+#Go into the directory containing your genomes
+cd /vortexfs1/omics/huber/selkassas/Methanogen_Comparison_Alta/genomes/
+
+#Optional command - this may be needed for some of the genomes: Reformat assemblies so they can run thru Anvi'o
+#for file in *.f
+#do
+#SAMPLE=$(basename ${file} | cut -d '.' -f 1)
+#anvi-script-reformat-fasta ${file} -o ${SAMPLE}.fa -l 0 --simplify-names
+#done
+
+#Load COG and KEGG/KOFAM db's into Anvi'o (you only need to do this once)
+anvi-setup-ncbi-cogs
+anvi-setup-kegg-kofams
+
+#for loop to build all of the contig_db, run the hmms, and annotate the COGs and KEGGs at once for all of your genomes: 
+for file in *.f
+do
+SAMPLE=$(basename ${file} | cut -d '.' -f 1)
+#generate a contigs database for each genome
+anvi-gen-contigs-database -f "${file}" --project-name ${SAMPLE} -o ${SAMPLE}_contigs-db.db 
+#sequence homology and alignment
+anvi-run-hmms -c "${SAMPLE}_contigs-db.db"
+#annotate gene clusters using COG db
+anvi-run-ncbi-cogs -c "${SAMPLE}_contigs-db.db" --num-threads 4
+#annotate using KEGG db
+anvi-run-kegg-kofams -c "${SAMPLE}_contigs-db.db" --num-threads 4
+done 
+
+#generate genomes file that puts your sample name in one column and the path to your sample in a second column
+anvi-script-gen-genomes-file --input-dir /vortexfs1/omics/huber/selkassas/Methanogen_Comparison_Alta/genomes/ \
+                             --output-file Methanogen_genomes.txt
+
+#stores all the info about your genomes
+anvi-gen-genomes-storage -e Methanogen_genomes.txt \
+                         -o METHANOGEN_GENOMES.db
+
+#generates your pangenome
+anvi-pan-genome -g METHANOGEN_GENOMES.db \
+                --project-name "METHANOGEN_PANGENOME" \
+                --output-dir METHANOGEN_PANGENOME \
+                --num-threads 4 \
+                --minbit 0.5
+```
+Submit the job to slurm `sbatch Methanogen_comparison_pangenome.sh`
